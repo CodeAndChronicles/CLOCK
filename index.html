@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الساعة</title>
+
+<!-- خط "Outfit" - خط مودرن رفيع بيدي إحساس premium، مش الخط الافتراضي للمتصفح -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ============================================
+     الجزء ده بيصفر كل حاجة (reset) عشان المتصفح
+     الافتراضي بيحط margin/padding غريب على body
+     ============================================ */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: #05070a;      /* خلفية غامقة جداً، شبه أسود مايل للأزرق */
+    overflow: hidden;         /* عشان ميظهرش scrollbar خالص */
+    font-family: "Outfit", -apple-system, "Segoe UI", "Cairo", sans-serif;
+  }
+
+  /* ============================================
+     شاشة الإعدادات (اللي بتظهر الأول قبل الفول سكرين)
+     ============================================ */
+  #settingsScreen {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    color: #e8ecf1;
+  }
+
+  #settingsScreen h1 {
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #ffffff;
+  }
+
+  .settingRow {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 15px;
+    color: #b7c0cc;
+  }
+
+  /* أزرار الاختيار (12/24 ساعة) */
+  .choiceGroup {
+    display: flex;
+    gap: 8px;
+    background: #12161c;
+    padding: 4px;
+    border-radius: 10px;
+  }
+
+  .choiceBtn {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #8b93a1;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .choiceBtn.active {
+    background: #2a3644;
+    color: #ffffff;
+  }
+
+  /* سويتش التفعيل/الإلغاء (زي إظهار الثواني / التاريخ) */
+  .switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    inset: 0;
+    background: #2a3038;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .slider::before {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    top: 3px;
+    background: #ffffff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+
+  .switch input:checked + .slider {
+    background: #3b82f6;
+  }
+
+  .switch input:checked + .slider::before {
+    transform: translateX(20px);
+  }
+
+  /* زرار الدخول للفول سكرين */
+  #startBtn {
+    margin-top: 16px;
+    padding: 12px 36px;
+    border: none;
+    border-radius: 12px;
+    background: #3b82f6;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  #startBtn:hover {
+    background: #2f6fd8;
+  }
+
+  #startBtn:active {
+    transform: scale(0.97);
+  }
+
+  /* ============================================
+     شاشة الساعة (اللي بتظهر بعد الدخول فول سكرين)
+     مخفية في الأول (display: none) لحد ما نفعّلها
+     ============================================ */
+  #clockScreen {
+    display: none;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #05070a;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ============================================
+     خلفية إضافية خلف الكارت الزجاجي: هالة لونية
+     كبيرة وناعمة (blur قوي) بتدي إحساس إن اللون
+     مش بس على حواف الكارت، لكن حاسس إنه بينور
+     المكان كله بهدوء. اللون نفسه هيتحط من الجافاسكريبت.
+     ============================================ */
+  #glowBackdrop {
+    position: absolute;
+    width: 70vw;
+    height: 70vw;
+    max-width: 900px;
+    max-height: 900px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.35;
+    pointer-events: none;     /* عشان ميمنعش الضغط أو أي حدث تاني */
+    transition: background 0.1s linear;
+  }
+
+  /* ============================================
+     الكارت الزجاجي (Glassmorphism) اللي فيه الساعة
+     - background شبه شفاف
+     - backdrop-filter: blur هو اللي بيدي تأثير "الزجاج
+       المصنفر" اللي بيشوف اللي وراه ضبابي
+     - border خفيف أبيض شفاف بيدي حس الحافة الزجاجية
+     - box-shadow هو اللي هيتحط عليه لون الجلو المتحرك
+     ============================================ */
+  #glassCard {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 64px 96px;
+    border-radius: 40px;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);   /* دعم سفاري */
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    transition: box-shadow 0.1s linear, border-color 0.1s linear;
+    /* box-shadow نفسه هيتحط ديناميك من الجافاسكريبت كل فريم */
+  }
+
+  #timeDisplay {
+    font-size: 13vw;              /* الحجم بيتغير حسب عرض الشاشة أوتوماتيك */
+    font-weight: 300;              /* خط رفيع أنيق مش تقيل */
+    letter-spacing: 6px;
+    line-height: 1;
+    color: #ffffff;                /* الساعة نفسها بيضا ثابتة - مش بتتلون */
+    text-shadow: 0 0 30px rgba(255, 255, 255, 0.25);   /* توهج أبيض خفيف ثابت */
+  }
+
+  #dateDisplay {
+    margin-top: 20px;
+    font-size: 17px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.55);   /* التاريخ أبيض شفاف هادي */
+  }
+</style>
+</head>
+<body>
+
+  <!-- ======================================================
+       شاشة الإعدادات
+       ====================================================== -->
+  <div id="settingsScreen">
+    <h1>الإعدادات</h1>
+
+    <div class="settingRow">
+      <span>نظام الوقت</span>
+      <div class="choiceGroup">
+        <button type="button" class="choiceBtn active" id="btn24" onclick="setFormat(24)">24 ساعة</button>
+        <button type="button" class="choiceBtn" id="btn12" onclick="setFormat(12)">12 ساعة</button>
+      </div>
+    </div>
+
+    <div class="settingRow">
+      <span>إظهار الثواني</span>
+      <label class="switch">
+        <input type="checkbox" id="secondsToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="settingRow">
+      <span>إظهار التاريخ</span>
+      <label class="switch">
+        <input type="checkbox" id="dateToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <button id="startBtn" onclick="enterFullscreenMode()">شاشة كاملة ⛶</button>
+  </div>
+
+  <!-- ======================================================
+       شاشة الساعة النهائية (فاضية دلوقتي، الجافاسكريبت هيملاها)
+       ====================================================== -->
+  <div id="clockScreen">
+    <div id="glowBackdrop"></div>
+    <div id="glassCard">
+      <div id="timeDisplay">00:00:00</div>
+      <div id="dateDisplay"></div>
+    </div>
+  </div>
+
+<script>
+  // ==========================================================
+  // 1) متغيرات بتخزن اختيارات المستخدم من شاشة الإعدادات
+  // ==========================================================
+  let use24Hour = true;      // true = 24 ساعة, false = 12 ساعة
+  let showSeconds = true;    // إظهار الثواني ولا لأ
+  let showDate = true;       // إظهار التاريخ ولا لأ
+
+  // مرجع سريع للعناصر عشان منكتبش document.getElementById كل مرة
+  const settingsScreen = document.getElementById('settingsScreen');
+  const clockScreen    = document.getElementById('clockScreen');
+  const timeDisplay    = document.getElementById('timeDisplay');
+  const dateDisplay    = document.getElementById('dateDisplay');
+  const glassCard      = document.getElementById('glassCard');
+  const glowBackdrop   = document.getElementById('glowBackdrop');
+
+  // ==========================================================
+  // 2) دالة بتتنفذ لما تدوس على زرار "24 ساعة" أو "12 ساعة"
+  //    بتاخد رقم (24 أو 12) وبتحدث المتغير وشكل الزرارين
+  // ==========================================================
+  function setFormat(hours) {
+    use24Hour = (hours === 24);
+
+    // نضيف كلاس "active" على الزرار المختار ونشيله من التاني
+    document.getElementById('btn24').classList.toggle('active', use24Hour);
+    document.getElementById('btn12').classList.toggle('active', !use24Hour);
+  }
+
+  // ==========================================================
+  // 3) دالة الدخول للفول سكرين — بتتنفذ لما تدوس زرار "شاشة كاملة"
+  // ==========================================================
+  function enterFullscreenMode() {
+
+    // أولاً: ناخد القيم النهائية من السويتشات قبل ما نخفي الشاشة
+    showSeconds = document.getElementById('secondsToggle').checked;
+    showDate    = document.getElementById('dateToggle').checked;
+
+    // ثانياً: نخفي شاشة الإعدادات ونظهر شاشة الساعة
+    settingsScreen.style.display = 'none';
+    clockScreen.style.display = 'flex';
+
+    // لو المستخدم مش عايز التاريخ، نخفي الـ div بتاعه خالص
+    dateDisplay.style.display = showDate ? 'block' : 'none';
+
+    // ثالثاً: نطلب من المتصفح يدخل Fullscreen فعلي
+    // document.documentElement يعني "الصفحة كلها" مش عنصر معين
+    const el = document.documentElement;
+    if (el.requestFullscreen) {
+      el.requestFullscreen();
+    } else if (el.webkitRequestFullscreen) {   // دعم متصفحات قديمة (سفاري مثلاً)
+      el.webkitRequestFullscreen();
+    }
+
+    // رابعاً: نبدأ تشغيل الساعة (الدالة دي هنعرّفها تحت)
+    startClockLoop();
+  }
+
+  // ==========================================================
+  // 4) لو المستخدم ضغط ESC وخرج من الفول سكرين، نرجعله شاشة
+  //    الإعدادات تاني بدل ما يفضل واقف على شاشة فاضية
+  // ==========================================================
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+      clockScreen.style.display = 'none';
+      settingsScreen.style.display = 'flex';
+    }
+  });
+
+  // ==========================================================
+  // 5) دالة تنسيق الوقت — بترجع نص جاهز زي "09:34:12 م"
+  // ==========================================================
+  function formatTime(now) {
+    let hours   = now.getHours();
+    let minutes = now.getMinutes();
+    let seconds = now.getSeconds();
+    let suffix  = '';   // "ص" أو "م" لو نظام 12 ساعة
+
+    if (!use24Hour) {
+      suffix = hours >= 12 ? ' م' : ' ص';
+      hours  = hours % 12;
+      if (hours === 0) hours = 12;   // الساعة 0 بنظام 12 = الساعة 12
+    }
+
+    // padStart(2, '0') يعني: لو الرقم خانة واحدة زي "5"، حطله صفر قبله يبقى "05"
+    const hh = String(hours).padStart(2, '0');
+    const mm = String(minutes).padStart(2, '0');
+    const ss = String(seconds).padStart(2, '0');
+
+    if (showSeconds) {
+      return `${hh}:${mm}:${ss}${suffix}`;
+    } else {
+      return `${hh}:${mm}${suffix}`;
+    }
+  }
+
+  // ==========================================================
+  // 6) دالة تنسيق التاريخ — زي "الأحد، 6 سبتمبر 2026"
+  // ==========================================================
+  function formatDate(now) {
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    return now.toLocaleDateString('ar-EG', options);
+  }
+
+  // ==========================================================
+  // 7) الجزء الأهم: حركة اللون "الحرة" على عجلة الألوان
+  //
+  //    بدل ما اللون يلف دورة ثابتة رتيبة (0 لـ 360 وبعدين
+  //    يرجع تاني من الأول بنفس الشكل بالظبط)، بنجمع هنا
+  //    موجتين (sine waves) بسرعتين مختلفتين مش قابلتين
+  //    للقسمة على بعض. النتيجة: حركة لونية حسها أشبه بالسحاب
+  //    أو الأورورا - بتتغير باستمرار وناعم جداً، بس نادراً
+  //    ما بتكرر نفس المسار بالظبط. ده اللي بيدي إحساس
+  //    "الحرية" و"الحيوية" (premium) بدل الحركة الآلية.
+  //
+  //    Date.now() بيدينا الميلي ثانية اللي مرت من 1970،
+  //    وده رقم بيزيد باستمرار من غير قفزات - فده أساس
+  //    النعومة في الحركة كلها.
+  // ==========================================================
+  function getCurrentHue() {
+    const t = Date.now() / 1000;   // الوقت الحالي بالثانية (رقم عشري دقيق)
+
+    // موجة أساسية بطيئة: بتلف دورة كل ~70 ثانية
+    const wave1 = Math.sin(t * (2 * Math.PI / 70));
+
+    // موجة ثانية أسرع شوية وبسرعة مختلفة تماماً: كل ~47 ثانية
+    // (47 و 70 مش قابلين للقسمة على بعض، فده اللي بيمنع التكرار)
+    const wave2 = Math.sin(t * (2 * Math.PI / 47));
+
+    // بندمج الموجتين ونطبعهم على مدى 0-360
+    const combined = (wave1 + wave2) / 2;        // النتيجة بين -1 و 1
+    const hue = ((combined + 1) / 2) * 360;      // نحولها لمدى 0-360
+
+    return hue;
+  }
+
+  // تشبع وإضاءة اللون بيتغيروا هما كمان بشكل خفيف جداً مع
+  // الوقت عشان اللون مايبقاش "مسطح" على نفس الدرجة طول الوقت
+  function getCurrentSaturation() {
+    const t = Date.now() / 1000;
+    return 70 + Math.sin(t * (2 * Math.PI / 33)) * 15;   // بين 55% و 85%
+  }
+
+  // ==========================================================
+  // 8) الحلقة الرئيسية اللي بتشتغل كل فريم (requestAnimationFrame
+  //    بيشتغل عادة 60 مرة في الثانية، وده اللي بيدي النعومة)
+  // ==========================================================
+  let clockLoopStarted = false;
+
+  function startClockLoop() {
+    if (clockLoopStarted) return;   // عشان منشغلش نفس الحلقة مرتين
+    clockLoopStarted = true;
+    updateFrame();
+  }
+
+  function updateFrame() {
+    const now = new Date();
+
+    // (أ) نحدث نص الوقت والتاريخ
+    timeDisplay.textContent = formatTime(now);
+    if (showDate) {
+      dateDisplay.textContent = formatDate(now);
+    }
+
+    // (ب) نحسب اللون الحالي على عجلة الألوان + التشبع المتغير
+    const hue = getCurrentHue();
+    const sat = getCurrentSaturation();
+
+    // (ج) الساعة نفسها فاضلة بيضا زي ما اتفقنا - مش بتتلمس هنا خالص
+    //     اللون كله بيروح على الكارت الزجاجي بدل النص
+
+    // نلون حدود الكارت (border) بلون خفيف من نفس اللون الحالي
+    glassCard.style.borderColor = `hsla(${hue}, ${sat}%, 65%, 0.35)`;
+
+    // الجلو الحقيقي بيتحط كـ box-shadow حوالين الكارت الزجاجي:
+    // - أول قيمة: توهج قريب وواضح نسبياً
+    // - تاني قيمة: توهج أوسع وأخف عشان يبان "منتشر" في المكان
+    // - تالت قيمة: inset (جوه الكارت) عشان يدي إحساس إن الزجاج
+    //   نفسه فيه ضوء جواه مش بس حواليه بس
+    glassCard.style.boxShadow =
+      `0 0 60px hsla(${hue}, ${sat}%, 60%, 0.45),
+       0 0 140px hsla(${hue}, ${sat}%, 55%, 0.25),
+       inset 0 0 40px hsla(${hue}, ${sat}%, 65%, 0.08)`;
+
+    // الهالة الكبيرة اللي وراء الكارت (الخلفية الضبابية الملونة)
+    // بتاخد نفس اللون بس أغمق شوية وبشفافية عالية عشان تبقى
+    // خلفية بعيدة مش عنصر واضح
+    glowBackdrop.style.background =
+      `radial-gradient(circle, hsla(${hue}, ${sat}%, 50%, 0.9) 0%, transparent 70%)`;
+
+    // (د) نطلب من المتصفح ينفذ الدالة دي تاني في الفريم الجاي
+    // ده اللي بيخلي الحلقة مستمرة من غير ما نستخدم setInterval
+    requestAnimationFrame(updateFrame);
+  }
+</script>
+
+</body>
+</html>
