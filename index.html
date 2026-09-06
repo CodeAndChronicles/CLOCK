@@ -5,27 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ساعة زجاجية سائلة</title>
 
-  <!-- الخط المودرن: Space Grotesk للارقام والانجليزية، مع Tajawal للعربية -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=Tajawal:wght@300;400;500&display=swap" rel="stylesheet">
 
   <style>
-    /* ==========================================
-       إعدادات الجذور والمتغيرات الأساسية
-       ========================================== */
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-    }
-
-    :root {
-      --glow-hue: 217;
-      --glow-sat: 75%;
-      --glow-light: 55%;
-      --glass-bg: rgba(255, 255, 255, 0.04);
-      --border-light: rgba(255, 255, 255, 0.08);
     }
 
     html,
@@ -34,7 +22,569 @@
       height: 100%;
       background: #05080c;
       overflow: hidden;
-      font-family: "Space Grotesk", "Tajawal", -apple-system, "Segoe UI", sans-serif;
+      font-family: "Space Grotesk", "Tajawal", -apple-system, sans-serif;
+    }
+
+    /* ===== شاشة الإعدادات ===== */
+    #settingsScreen {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      color: #e8ecf1;
+      padding: 20px;
+      background: radial-gradient(circle at 30% 40%, #0f172a, #05080c 80%);
+    }
+
+    #settingsScreen h1 {
+      font-size: 28px;
+      font-weight: 500;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #f0f4ff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .settingRow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 340px;
+      max-width: 90%;
+      gap: 18px;
+      font-size: 15px;
+      font-weight: 400;
+      color: #c8d0dc;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .choiceGroup {
+      display: flex;
+      gap: 6px;
+      background: #12161c;
+      padding: 3px;
+      border-radius: 10px;
+    }
+
+    .choiceBtn {
+      padding: 6px 16px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #8b93a1;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .choiceBtn.active {
+      background: #2a3644;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .switch {
+      position: relative;
+      width: 42px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: #2a3038;
+      border-radius: 24px;
+      cursor: pointer;
+      transition: background 0.25s;
+    }
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 3px;
+      top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.25s;
+    }
+    .switch input:checked+.slider {
+      background: #3b82f6;
+    }
+    .switch input:checked+.slider::before {
+      transform: translateX(20px);
+    }
+
+    #startBtn {
+      margin-top: 20px;
+      padding: 14px 48px;
+      border: none;
+      border-radius: 14px;
+      background: #3b82f6;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s;
+      box-shadow: 0 6px 24px rgba(59, 130, 246, 0.25);
+      letter-spacing: 0.5px;
+    }
+    #startBtn:hover {
+      background: #2563eb;
+      transform: scale(1.02);
+      box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4);
+    }
+    #startBtn:active {
+      transform: scale(0.96);
+    }
+
+    /* ===== شاشة الساعة ===== */
+    #clockScreen {
+      display: none;
+      width: 100%;
+      height: 100%;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #05080c;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #glowBackdrop {
+      position: absolute;
+      width: 80vmin;
+      height: 80vmin;
+      max-width: 1000px;
+      max-height: 1000px;
+      border-radius: 50%;
+      filter: blur(130px);
+      opacity: 0.4;
+      pointer-events: none;
+      transition: background 0.15s ease;
+    }
+
+    #glassCard {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(40px, 10vmin, 100px) clamp(48px, 12vmin, 130px);
+      border-radius: 56px;
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(32px) saturate(1.2);
+      -webkit-backdrop-filter: blur(32px) saturate(1.2);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    #glassCard::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 56px;
+      background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    #timeDisplay {
+      font-size: clamp(4.5rem, 20vmin, 13rem);
+      font-weight: 300;
+      letter-spacing: 8px;
+      line-height: 1;
+      color: #ffffff;
+      text-shadow: 0 0 40px rgba(255, 255, 255, 0.15);
+      font-feature-settings: "tnum";
+      z-index: 1;
+      direction: ltr;
+    }
+
+    #dateDisplay {
+      margin-top: 24px;
+      font-size: clamp(1rem, 2.5vmin, 1.6rem);
+      font-weight: 300;
+      letter-spacing: 1.5px;
+      color: rgba(255, 255, 255, 0.7);
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+      z-index: 1;
+      text-align: center;
+      line-height: 1.6;
+      direction: rtl;
+    }
+
+    .dateExtra {
+      display: block;
+      font-size: 0.7em;
+      opacity: 0.6;
+      margin-top: 4px;
+      font-weight: 300;
+      letter-spacing: 1px;
+    }
+
+    @media (max-width: 600px) {
+      #settingsScreen h1 {
+        font-size: 22px;
+      }
+      .settingRow {
+        width: 100%;
+        font-size: 14px;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+      }
+      #glassCard {
+        padding: 32px 24px;
+        border-radius: 32px;
+      }
+      #timeDisplay {
+        letter-spacing: 4px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== شاشة الإعدادات ===== -->
+  <div id="settingsScreen">
+    <h1>⚡ إعدادات الساعة</h1>
+
+    <div class="settingRow">
+      <span>نظام الوقت</span>
+      <div class="choiceGroup">
+        <button type="button" class="choiceBtn active" id="btn24">24 س</button>
+        <button type="button" class="choiceBtn" id="btn12">12 س</button>
+      </div>
+    </div>
+
+    <div class="settingRow">
+      <span>إظهار الثواني</span>
+      <label class="switch"><input type="checkbox" id="secondsToggle" checked><span class="slider"></span></label>
+    </div>
+
+    <div class="settingRow">
+      <span>التاريخ التفصيلي</span>
+      <label class="switch"><input type="checkbox" id="dateToggle" checked><span class="slider"></span></label>
+    </div>
+
+    <div class="settingRow">
+      <span>إبقاء الشاشة شغالة</span>
+      <label class="switch"><input type="checkbox" id="keepAwakeToggle" checked><span class="slider"></span></label>
+    </div>
+
+    <button id="startBtn">▶ شاشة كاملة</button>
+  </div>
+
+  <!-- ===== شاشة الساعة ===== -->
+  <div id="clockScreen">
+    <div id="glowBackdrop"></div>
+    <div id="glassCard">
+      <div id="timeDisplay">00:00:00</div>
+      <div id="dateDisplay"></div>
+    </div>
+  </div>
+
+  <script>
+    // =============================================================
+    // التطبيق - Automatic بالكامل، بدون أي تدخل من المستخدم في الألوان
+    // =============================================================
+    const app = {
+      // --- الإعدادات المخزنة ---
+      use24Hour: true,
+      showSeconds: true,
+      showDate: true,
+      keepAwake: true,
+
+      // --- مراجع العناصر ---
+      settingsScreen: document.getElementById('settingsScreen'),
+      clockScreen: document.getElementById('clockScreen'),
+      timeDisplay: document.getElementById('timeDisplay'),
+      dateDisplay: document.getElementById('dateDisplay'),
+      glassCard: document.getElementById('glassCard'),
+      glowBackdrop: document.getElementById('glowBackdrop'),
+
+      // --- حالة التشغيل ---
+      isRunning: false,
+      wakeLock: null,
+      colorAnimId: null,
+      timeIntervalId: null,
+
+      // ===========================================================
+      // 1) التهيئة
+      // ===========================================================
+      init() {
+        this.loadSettings();
+        this.bindUI();
+
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement) this.exitClock();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible' && this.isRunning && this.keepAwake) {
+            this.requestWakeLock();
+          }
+        });
+      },
+
+      // ===========================================================
+      // 2) ربط واجهة الإعدادات
+      // ===========================================================
+      bindUI() {
+        document.getElementById('btn24').addEventListener('click', () => this.setFormat(24));
+        document.getElementById('btn12').addEventListener('click', () => this.setFormat(12));
+
+        document.getElementById('secondsToggle').addEventListener('change', (e) => {
+          this.showSeconds = e.target.checked;
+          this.saveSettings();
+          if (this.isRunning) this.updateTimeNow();
+        });
+
+        document.getElementById('dateToggle').addEventListener('change', (e) => {
+          this.showDate = e.target.checked;
+          this.saveSettings();
+          if (this.isRunning) {
+            this.dateDisplay.style.display = this.showDate ? 'block' : 'none';
+            if (this.showDate) this.updateTimeNow();
+          }
+        });
+
+        document.getElementById('keepAwakeToggle').addEventListener('change', (e) => {
+          this.keepAwake = e.target.checked;
+          this.saveSettings();
+          if (this.isRunning && this.keepAwake) this.requestWakeLock();
+          else if (this.isRunning && !this.keepAwake) this.releaseWakeLock();
+        });
+
+        document.getElementById('startBtn').addEventListener('click', () => this.enterFullscreen());
+      },
+
+      // ===========================================================
+      // 3) تحميل/حفظ الإعدادات (بدون لون طبعاً)
+      // ===========================================================
+      loadSettings() {
+        try {
+          const data = JSON.parse(localStorage.getItem('clockAppSettings'));
+          if (data) {
+            this.use24Hour = data.use24Hour ?? true;
+            this.showSeconds = data.showSeconds ?? true;
+            this.showDate = data.showDate ?? true;
+            this.keepAwake = data.keepAwake ?? true;
+          }
+        } catch (_) {}
+
+        document.getElementById('btn24').classList.toggle('active', this.use24Hour);
+        document.getElementById('btn12').classList.toggle('active', !this.use24Hour);
+        document.getElementById('secondsToggle').checked = this.showSeconds;
+        document.getElementById('dateToggle').checked = this.showDate;
+        document.getElementById('keepAwakeToggle').checked = this.keepAwake;
+      },
+
+      saveSettings() {
+        localStorage.setItem('clockAppSettings', JSON.stringify({
+          use24Hour: this.use24Hour,
+          showSeconds: this.showSeconds,
+          showDate: this.showDate,
+          keepAwake: this.keepAwake,
+        }));
+      },
+
+      // ===========================================================
+      // 4) تبديل نظام الوقت
+      // ===========================================================
+      setFormat(hours) {
+        this.use24Hour = (hours === 24);
+        document.getElementById('btn24').classList.toggle('active', this.use24Hour);
+        document.getElementById('btn12').classList.toggle('active', !this.use24Hour);
+        this.saveSettings();
+        if (this.isRunning) this.updateTimeNow();
+      },
+
+      // ===========================================================
+      // 5) الدخول للشاشة الكاملة
+      // ===========================================================
+      async enterFullscreen() {
+        // قراءة القيم النهائية من الواجهة
+        this.showSeconds = document.getElementById('secondsToggle').checked;
+        this.showDate = document.getElementById('dateToggle').checked;
+        this.keepAwake = document.getElementById('keepAwakeToggle').checked;
+        this.saveSettings();
+
+        this.settingsScreen.style.display = 'none';
+        this.clockScreen.style.display = 'flex';
+        this.dateDisplay.style.display = this.showDate ? 'block' : 'none';
+
+        const el = document.documentElement;
+        if (el.requestFullscreen) await el.requestFullscreen().catch(() => {});
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+
+        if (this.keepAwake) await this.requestWakeLock();
+
+        this.startClock();
+      },
+
+      // ===========================================================
+      // 6) الخروج من الساعة
+      // ===========================================================
+      exitClock() {
+        this.isRunning = false;
+        this.clockScreen.style.display = 'none';
+        this.settingsScreen.style.display = 'flex';
+        if (this.timeIntervalId) clearInterval(this.timeIntervalId);
+        if (this.colorAnimId) cancelAnimationFrame(this.colorAnimId);
+        this.releaseWakeLock();
+      },
+
+      // ===========================================================
+      // 7) Wake Lock
+      // ===========================================================
+      async requestWakeLock() {
+        try {
+          if ('wakeLock' in navigator) {
+            this.wakeLock = await navigator.wakeLock.request('screen');
+          }
+        } catch (_) {}
+      },
+
+      releaseWakeLock() {
+        if (this.wakeLock) {
+          try { this.wakeLock.release(); } catch (_) {}
+          this.wakeLock = null;
+        }
+      },
+
+      // ===========================================================
+      // 8) تشغيل الساعة (فصل التحديثات)
+      // ===========================================================
+      startClock() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+
+        this.updateTimeNow();
+        if (this.timeIntervalId) clearInterval(this.timeIntervalId);
+        this.timeIntervalId = setInterval(() => this.updateTimeNow(), 1000);
+
+        if (this.colorAnimId) cancelAnimationFrame(this.colorAnimId);
+        this.colorLoop();
+      },
+
+      // ===========================================================
+      // 9) تحديث الوقت والتاريخ
+      // ===========================================================
+      updateTimeNow() {
+        const now = new Date();
+        this.timeDisplay.textContent = this.formatTime(now);
+        if (this.showDate) {
+          this.dateDisplay.innerHTML = this.formatDateDetailed(now);
+        }
+      },
+
+      formatTime(now) {
+        let h = now.getHours();
+        let m = now.getMinutes();
+        let s = now.getSeconds();
+        let suffix = '';
+
+        if (!this.use24Hour) {
+          suffix = h >= 12 ? ' م' : ' ص';
+          h = h % 12 || 12;
+        }
+
+        const hh = String(h).padStart(2, '0');
+        const mm = String(m).padStart(2, '0');
+        const ss = String(s).padStart(2, '0');
+
+        return this.showSeconds ? `${hh}:${mm}:${ss}${suffix}` : `${hh}:${mm}${suffix}`;
+      },
+
+      // تاريخ دقيق مع رقم الأسبوع ISO 8601 صحيح
+      formatDateDetailed(now) {
+        const mainDate = now.toLocaleDateString('ar-EG', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+
+        // حساب رقم الأسبوع ISO 8601 بشكل صحيح
+        const weekNumber = this.getISOWeekNumber(now);
+
+        // اليوم من السنة
+        const startOfYear = new Date(now.getFullYear(), 0, 0);
+        const diff = now - startOfYear;
+        const dayOfYear = Math.floor(diff / (24 * 60 * 60 * 1000));
+
+        return `
+          ${mainDate}
+          <span class="dateExtra">الأسبوع ${weekNumber} · اليوم ${dayOfYear} من ${now.getFullYear()}</span>
+        `;
+      },
+
+      // دالة حساب الأسبوع ISO 8601 (دقيقة 100%)
+      getISOWeekNumber(date) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        // الخميس من نفس الأسبوع
+        d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+        const week1 = new Date(d.getFullYear(), 0, 4);
+        return 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+      },
+
+      // ===========================================================
+      // 10) حلقة الألوان التلقائية الحرة (360 درجة بحركة غير دورية)
+      // ===========================================================
+      colorLoop() {
+        if (!this.isRunning) return;
+
+        const t = Date.now() / 1000;
+
+        // موجتين بسرعات مختلفة وغير قابلة للقسمة على بعض
+        // النتيجة: حركة حرة على كامل عجلة الألوان بدون تكرار دوري ممل
+        const wave1 = Math.sin(t * (2 * Math.PI / 71));
+        const wave2 = Math.sin(t * (2 * Math.PI / 47));
+        const combined = (wave1 + wave2) / 2; // -1 .. 1
+        const hue = ((combined + 1) / 2) * 360; // 0 .. 360
+
+        // تشبع وإضاءة متغيرين بردو عشان الحيوية
+        const sat = 65 + Math.sin(t * (2 * Math.PI / 33)) * 15;
+        const light = 50 + Math.sin(t * (2 * Math.PI / 29)) * 10;
+
+        // تطبيق الألوان على الكارت والإضاءة الخلفية
+        this.glassCard.style.borderColor = `hsla(${hue}, ${sat}%, 65%, 0.3)`;
+        this.glassCard.style.boxShadow = `
+          0 0 80px hsla(${hue}, ${sat}%, ${light}%, 0.4),
+          0 0 180px hsla(${hue}, ${sat}%, ${light - 10}%, 0.2),
+          inset 0 0 50px hsla(${hue}, ${sat}%, ${light + 10}%, 0.06)
+        `;
+
+        this.glowBackdrop.style.background = `
+          radial-gradient(circle at 50% 50%, hsla(${hue}, ${sat}%, 50%, 0.85), transparent 70%)
+        `;
+
+        this.colorAnimId = requestAnimationFrame(() => this.colorLoop());
+      }
+    };
+
+    // =============================================================
+    // التشغيل
+    // =============================================================
+    document.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
+
+</body>
+</html>      font-family: "Space Grotesk", "Tajawal", -apple-system, "Segoe UI", sans-serif;
     }
 
     /* ==========================================
