@@ -10,12 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=Tajawal:wght@300;400;500&display=swap" rel="stylesheet">
 
   <style>
-    /* ===== إعادة ضبط ===== */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html, body {
       width: 100%;
@@ -27,13 +22,647 @@
 
     /* ===== شاشة الإعدادات ===== */
     #settingsScreen {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 22px;
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 22px; color: #e8ecf1; padding: 20px;
+      background: radial-gradient(circle at 30% 40%, #0f172a, #05080c 80%);
+    }
+    #settingsScreen h1 {
+      font-size: 28px; font-weight: 500; margin-bottom: 10px;
+      background: linear-gradient(135deg, #f0f4ff, #94a3b8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .settingRow {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 340px; max-width: 90%; gap: 18px; font-size: 15px; font-weight: 400;
+      color: #c8d0dc; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .choiceGroup { display: flex; gap: 6px; background: #12161c; padding: 3px; border-radius: 10px; }
+    .choiceBtn {
+      padding: 6px 16px; border: none; border-radius: 8px; background: transparent;
+      color: #8b93a1; font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s;
+    }
+    .choiceBtn.active { background: #2a3644; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    .switch { position: relative; width: 42px; height: 22px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0; background: #2a3038; border-radius: 24px;
+      cursor: pointer; transition: background 0.25s;
+    }
+    .slider::before {
+      content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px;
+      background: #fff; border-radius: 50%; transition: transform 0.25s;
+    }
+    .switch input:checked + .slider { background: #3b82f6; }
+    .switch input:checked + .slider::before { transform: translateX(20px); }
+
+    #startBtn {
+      margin-top: 20px; padding: 14px 48px; border: none; border-radius: 14px;
+      background: #3b82f6; color: #fff; font-size: 16px; font-weight: 600;
+      cursor: pointer; transition: all 0.25s; box-shadow: 0 6px 24px rgba(59,130,246,0.25);
+      letter-spacing: 0.5px;
+    }
+    #startBtn:hover { background: #2563eb; transform: scale(1.02); box-shadow: 0 8px 32px rgba(59,130,246,0.4); }
+    #startBtn:active { transform: scale(0.96); }
+
+    /* ===== شاشة الساعة ===== */
+    #clockScreen {
+      display: none; width: 100%; height: 100%;
+      flex-direction: column; align-items: center; justify-content: center;
+      background: #05080c; position: relative; overflow: hidden;
+    }
+
+    /* الغلاف اللي بيتحرك: بيجمع فيه Major + Micro + PixelRefresh + Relocation كلهم مع بعض */
+    #clockWrapper {
+      position: relative; display: flex; align-items: center; justify-content: center;
+      width: 100%; height: 100%;
+      transition: transform 2.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 1s ease;
+      will-change: transform;
+    }
+
+    /* هالة خلفية خافتة جداً - أثر جوّي بعيد، مش المصدر الأساسي للإضاءة */
+    #ambientBackdrop {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 75vmin; height: 75vmin; max-width: 950px; max-height: 950px;
+      border-radius: 50%; filter: blur(140px); opacity: 0.18;
+      pointer-events: none; will-change: background;
+    }
+
+    /* ===== الكارت الزجاجي ===== */
+    #glassCard {
+      position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: clamp(40px, 10vmin, 100px) clamp(48px, 12vmin, 130px);
+      border-radius: 56px;
+      background: hsla(0, 20%, 90%, 0.035);
+      backdrop-filter: blur(20px) saturate(1.6) contrast(1.05);
+      -webkit-backdrop-filter: blur(20px) saturate(1.6) contrast(1.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow:
+        0 20px 60px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.15),
+        inset 0 -1px 0 rgba(0,0,0,0.2);
+      overflow: hidden;
+      /* لاحظ: "background" اتشالت من هنا عمداً - تحديثها بيحصل مباشر بالجافاسكريبت
+         عشان الـ transition مش بتقدر تعمل تزحلق ناعم بين قيم gradient مختلفة */
+      transition: border-color 0.8s ease, box-shadow 0.8s ease, backdrop-filter 1.2s ease;
+    }
+
+    /* الطبقة 3: الانعكاس السائل - CSS بحت، بطيء جداً */
+    #glassCard::before {
+      content: ''; position: absolute; inset: 0; border-radius: 56px;
+      background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.06) 0%, transparent 60%);
+      background-size: 200% 200%;
+      animation: liquidDrift 30s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+    @keyframes liquidDrift {
+      0%   { background-position: 0% 0%; }
+      100% { background-position: 100% 100%; }
+    }
+
+    /* ===== إضاءة داخلية حقيقية جوه الزجاج (بدل الـ glow الخارجي) ===== */
+
+    /* الضوء الرئيسي: نقطة ضوء ملونة بتتحرك في دايرة بطيئة جواه الكارت،
+       مدموجة بـ mix-blend-mode: screen عشان تحس إنها ضوء بيضيء من جوه السائل
+       نفسه مش لون مرسوم فوقه */
+    #liquidLight {
+      position: absolute; inset: 0; border-radius: 56px;
+      pointer-events: none;
+      mix-blend-mode: screen;
+      /* الخلفية نفسها هتتحط بالكامل من الجافاسكريبت كل تحديث */
+    }
+
+    /* شريط لمعان (specular) قطري بيعدي ببطء شديد فوق الزجاج - CSS بحت،
+       ده اللي بيدي إحساس "زجاج حقيقي بينعكس عليه الضوء" مش سطح مسطح */
+    #specularSweep {
+      position: absolute; inset: 0; border-radius: 56px;
+      pointer-events: none;
+      mix-blend-mode: overlay;
+      opacity: 0.55;
+      background: linear-gradient(
+        115deg,
+        transparent 30%,
+        rgba(255,255,255,0.35) 48%,
+        rgba(255,255,255,0.08) 52%,
+        transparent 70%
+      );
+      background-size: 260% 260%;
+      animation: specularDrift 34s ease-in-out infinite alternate;
+    }
+    @keyframes specularDrift {
+      0%   { background-position: 15% 85%; }
+      100% { background-position: 85% 15%; }
+    }
+
+    /* ===== النصوص ===== */
+    #timeDisplay {
+      position: relative; z-index: 2;
+      font-size: clamp(4.5rem, 20vmin, 13rem);
+      font-weight: 300; letter-spacing: 8px; line-height: 1;
+      color: #ffffff;
+      text-shadow: 0 0 40px rgba(255,255,255,0.15);
+      font-feature-settings: "tnum";
+      direction: ltr;
+      transition: color 0.8s ease, text-shadow 0.8s ease;
+    }
+    #dateDisplay {
+      position: relative; z-index: 2;
+      margin-top: 24px;
+      font-size: clamp(1rem, 2.5vmin, 1.6rem);
+      font-weight: 300; letter-spacing: 1.5px;
+      color: rgba(255, 255, 255, 0.7);
+      text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      text-align: center; line-height: 1.8; direction: rtl;
+      transition: color 0.8s ease, text-shadow 0.8s ease;
+    }
+    .dateExtra { display: block; font-size: 0.7em; opacity: 0.6; margin-top: 2px; font-weight: 300; letter-spacing: 1px; }
+    .hijriDate { display: block; font-size: 0.75em; opacity: 0.65; margin-top: 4px; font-weight: 300; letter-spacing: 1px; }
+
+    @media (max-width: 600px) {
+      #settingsScreen h1 { font-size: 22px; }
+      .settingRow { width: 100%; font-size: 14px; flex-wrap: wrap; justify-content: center; gap: 8px; }
+      #glassCard { padding: 32px 24px; border-radius: 32px; }
+      #timeDisplay { letter-spacing: 4px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== شاشة الإعدادات ===== -->
+  <div id="settingsScreen">
+    <h1>⚡ إعدادات الساعة</h1>
+    <div class="settingRow">
+      <span>نظام الوقت</span>
+      <div class="choiceGroup">
+        <button type="button" class="choiceBtn active" id="btn24">24 س</button>
+        <button type="button" class="choiceBtn" id="btn12">12 س</button>
+      </div>
+    </div>
+    <div class="settingRow">
+      <span>إظهار الثواني</span>
+      <label class="switch"><input type="checkbox" id="secondsToggle" checked><span class="slider"></span></label>
+    </div>
+    <div class="settingRow">
+      <span>التاريخ التفصيلي</span>
+      <label class="switch"><input type="checkbox" id="dateToggle" checked><span class="slider"></span></label>
+    </div>
+    <div class="settingRow">
+      <span>إبقاء الشاشة شغالة</span>
+      <label class="switch"><input type="checkbox" id="keepAwakeToggle" checked><span class="slider"></span></label>
+    </div>
+    <button id="startBtn">▶ شاشة كاملة</button>
+  </div>
+
+  <!-- ===== شاشة الساعة ===== -->
+  <div id="clockScreen">
+    <div id="clockWrapper">
+      <div id="ambientBackdrop"></div>
+      <div id="glassCard">
+        <div id="liquidLight"></div>
+        <div id="specularSweep"></div>
+        <div id="timeDisplay">00:00:00</div>
+        <div id="dateDisplay"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const app = {
+      // --- إعدادات المستخدم ---
+      use24Hour: true, showSeconds: true, showDate: true, keepAwake: true,
+
+      // --- مراجع DOM ---
+      settingsScreen: document.getElementById('settingsScreen'),
+      clockScreen: document.getElementById('clockScreen'),
+      clockWrapper: document.getElementById('clockWrapper'),
+      timeDisplay: document.getElementById('timeDisplay'),
+      dateDisplay: document.getElementById('dateDisplay'),
+      glassCard: document.getElementById('glassCard'),
+      ambientBackdrop: document.getElementById('ambientBackdrop'),
+      liquidLight: document.getElementById('liquidLight'),
+
+      // --- حالة التشغيل ---
+      isRunning: false,
+      wakeLock: null,
+      colorAnimId: null,
+      timeIntervalId: null,
+      lastColorUpdate: 0,
+      colorUpdateInterval: 100, // 10 تحديثات/ثانية كحد أقصى
+
+      // --- Anti Burn-in: كل نظام له متغيراته المستقلة ---
+      burnMajorTimeout: null,
+      burnMicroTimeout: null,
+      pixelRefreshInterval: null,
+      majorX: 0, majorY: 0,
+      microX: 0, microY: 0,
+      pixelRefreshX: 0, pixelRefreshY: 0,
+
+      // --- Layout Relocation Engine ---
+      relocationTimeout: null,
+      relocHistory: [],           // آخر 3 مناطق مستخدمة
+      relocX: 0, relocY: 0,       // بالنسبة المئوية
+      relocScale: 1,
+      relocOpacityMul: 1,
+      anchors: [
+        { name: 'center',       x: 0,   y: 0   },
+        { name: 'top-left',     x: -30, y: -30 },
+        { name: 'top-right',    x: 30,  y: -30 },
+        { name: 'bottom-left',  x: -30, y: 30  },
+        { name: 'bottom-right', x: 30,  y: 30  },
+        { name: 'mid-left',     x: -38, y: 0   },
+        { name: 'mid-right',    x: 38,  y: 0   },
+        { name: 'top-mid',      x: 0,   y: -35 },
+        { name: 'bottom-mid',   x: 0,   y: 35  },
+      ],
+      scaleOptions: [0.85, 0.9, 0.95, 1.0, 0.92],
+
+      init() {
+        this.loadSettings();
+        this.bindUI();
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement) this.exitClock();
+        });
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible' && this.isRunning && this.keepAwake) {
+            this.requestWakeLock();
+          }
+        });
+      },
+
+      bindUI() {
+        document.getElementById('btn24').addEventListener('click', () => this.setFormat(24));
+        document.getElementById('btn12').addEventListener('click', () => this.setFormat(12));
+        document.getElementById('secondsToggle').addEventListener('change', (e) => {
+          this.showSeconds = e.target.checked; this.saveSettings();
+          if (this.isRunning) this.updateTimeNow();
+        });
+        document.getElementById('dateToggle').addEventListener('change', (e) => {
+          this.showDate = e.target.checked; this.saveSettings();
+          if (this.isRunning) {
+            this.dateDisplay.style.display = this.showDate ? 'block' : 'none';
+            if (this.showDate) this.updateTimeNow();
+          }
+        });
+        document.getElementById('keepAwakeToggle').addEventListener('change', (e) => {
+          this.keepAwake = e.target.checked; this.saveSettings();
+          if (this.isRunning && this.keepAwake) this.requestWakeLock();
+          else if (this.isRunning && !this.keepAwake) this.releaseWakeLock();
+        });
+        document.getElementById('startBtn').addEventListener('click', () => this.enterFullscreen());
+      },
+
+      loadSettings() {
+        try {
+          const data = JSON.parse(localStorage.getItem('clockAppSettings'));
+          if (data) {
+            this.use24Hour = data.use24Hour ?? true;
+            this.showSeconds = data.showSeconds ?? true;
+            this.showDate = data.showDate ?? true;
+            this.keepAwake = data.keepAwake ?? true;
+          }
+        } catch (_) {}
+        document.getElementById('btn24').classList.toggle('active', this.use24Hour);
+        document.getElementById('btn12').classList.toggle('active', !this.use24Hour);
+        document.getElementById('secondsToggle').checked = this.showSeconds;
+        document.getElementById('dateToggle').checked = this.showDate;
+        document.getElementById('keepAwakeToggle').checked = this.keepAwake;
+      },
+
+      saveSettings() {
+        localStorage.setItem('clockAppSettings', JSON.stringify({
+          use24Hour: this.use24Hour, showSeconds: this.showSeconds,
+          showDate: this.showDate, keepAwake: this.keepAwake,
+        }));
+      },
+
+      setFormat(hours) {
+        this.use24Hour = (hours === 24);
+        document.getElementById('btn24').classList.toggle('active', this.use24Hour);
+        document.getElementById('btn12').classList.toggle('active', !this.use24Hour);
+        this.saveSettings();
+        if (this.isRunning) this.updateTimeNow();
+      },
+
+      async enterFullscreen() {
+        this.showSeconds = document.getElementById('secondsToggle').checked;
+        this.showDate = document.getElementById('dateToggle').checked;
+        this.keepAwake = document.getElementById('keepAwakeToggle').checked;
+        this.saveSettings();
+
+        this.settingsScreen.style.display = 'none';
+        this.clockScreen.style.display = 'flex';
+        this.dateDisplay.style.display = this.showDate ? 'block' : 'none';
+
+        const el = document.documentElement;
+        if (el.requestFullscreen) await el.requestFullscreen().catch(() => {});
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+
+        if (this.keepAwake) await this.requestWakeLock();
+
+        this.startClock();
+        this.startBurnProtection();
+        this.startPixelRefresh();
+        this.scheduleNextRelocation();
+      },
+
+      exitClock() {
+        this.isRunning = false;
+        this.clockScreen.style.display = 'none';
+        this.settingsScreen.style.display = 'flex';
+        if (this.timeIntervalId) clearInterval(this.timeIntervalId);
+        if (this.colorAnimId) { clearTimeout(this.colorAnimId); cancelAnimationFrame(this.colorAnimId); this.colorAnimId = null; }
+        if (this.burnMajorTimeout) clearTimeout(this.burnMajorTimeout);
+        if (this.burnMicroTimeout) clearTimeout(this.burnMicroTimeout);
+        if (this.pixelRefreshInterval) clearInterval(this.pixelRefreshInterval);
+        if (this.relocationTimeout) clearTimeout(this.relocationTimeout);
+        this.releaseWakeLock();
+
+        this.majorX = 0; this.majorY = 0;
+        this.microX = 0; this.microY = 0;
+        this.pixelRefreshX = 0; this.pixelRefreshY = 0;
+        this.relocX = 0; this.relocY = 0; this.relocScale = 1;
+        this.clockWrapper.style.transform = 'translate(0px, 0px) scale(1)';
+      },
+
+      async requestWakeLock() {
+        try { if ('wakeLock' in navigator) this.wakeLock = await navigator.wakeLock.request('screen'); } catch (_) {}
+      },
+      releaseWakeLock() {
+        if (this.wakeLock) { try { this.wakeLock.release(); } catch (_) {} this.wakeLock = null; }
+      },
+
+      startClock() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.updateTimeNow();
+        if (this.timeIntervalId) clearInterval(this.timeIntervalId);
+        this.timeIntervalId = setInterval(() => this.updateTimeNow(), 1000);
+        this.scheduleColorLoop();
+      },
+
+      updateTimeNow() {
+        const now = new Date();
+        this.timeDisplay.textContent = this.formatTime(now);
+        if (this.showDate) this.dateDisplay.innerHTML = this.formatDateDetailed(now);
+      },
+
+      formatTime(now) {
+        let h = now.getHours(), m = now.getMinutes(), s = now.getSeconds(), suffix = '';
+        if (!this.use24Hour) { suffix = h >= 12 ? ' م' : ' ص'; h = h % 12 || 12; }
+        const hh = String(h).padStart(2,'0'), mm = String(m).padStart(2,'0'), ss = String(s).padStart(2,'0');
+        return this.showSeconds ? `${hh}:${mm}:${ss}${suffix}` : `${hh}:${mm}${suffix}`;
+      },
+
+      formatDateDetailed(now) {
+        const gregorian = now.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const hijri = now.toLocaleDateString('ar-SA-u-ca-islamic', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const weekNumber = this.getISOWeekNumber(now);
+        const dayOfYear = this.getDayOfYear(now);
+        const totalDays = this.getTotalDaysInYear(now.getFullYear());
+        const daysLeft = totalDays - dayOfYear;
+        return `
+          <div>${gregorian}</div>
+          <div class="hijriDate">${hijri}</div>
+          <div class="dateExtra">الأسبوع ${weekNumber} · اليوم ${dayOfYear} من ${now.getFullYear()} · ${daysLeft} يوم متبقي</div>
+        `;
+      },
+
+      getISOWeekNumber(date) {
+        const d = new Date(date); d.setHours(0,0,0,0);
+        d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+        const week1 = new Date(d.getFullYear(), 0, 4);
+        return 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+      },
+      getDayOfYear(date) { const start = new Date(date.getFullYear(), 0, 0); return Math.floor((date - start) / 86400000); },
+      getTotalDaysInYear(year) { const dec31 = new Date(year, 11, 31); return this.getDayOfYear(dec31) + 1; },
+
+      // ===========================================================
+      // نظام الطاقة الموحّد - دالة واحدة مستمرة بدل تفريعات منفصلة
+      // بترجع nightAmount من 0 (نهار كامل) لـ 1 (ليل عميق كامل)
+      // ومفيش قفزات لأن الانتقال بين كل نقطة والتانية خطي (linear)
+      // ===========================================================
+      getNightAmount(now) {
+        const hourDecimal = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+        // نقاط الترقيم متصلة من غير قفزات: (الساعة, نسبة الليل)
+        const points = [
+          { t: 0,    v: 1 },   // نص الليل - ليل كامل
+          { t: 6.5,  v: 1 },   // لسه ليل كامل
+          { t: 7,    v: 0 },   // الصبح - نهار كامل
+          { t: 18,   v: 0 },   // لسه نهار كامل
+          { t: 22,   v: 1 },   // اكتمل التحول لليل
+          { t: 24,   v: 1 },   // نص الليل تاني (بداية اليوم الجاي)
+        ];
+        for (let i = 0; i < points.length - 1; i++) {
+          if (hourDecimal >= points[i].t && hourDecimal <= points[i+1].t) {
+            const p1 = points[i], p2 = points[i+1];
+            const ratio = (p2.t - p1.t) === 0 ? 0 : (hourDecimal - p1.t) / (p2.t - p1.t);
+            return p1.v + (p2.v - p1.v) * ratio;
+          }
+        }
+        return 0;
+      },
+
+      // لون دافئ لليل - مبني على "ساعات منذ 22:00" (ترقيم متصل بلا قفزات)
+      getNightHue(now) {
+        const hourDecimal = now.getHours() + now.getMinutes() / 60;
+        const hoursSince22 = (hourDecimal - 22 + 24) % 24;
+        const points = [
+          { t: 0, hue: 35 }, { t: 2, hue: 30 }, { t: 5, hue: 25 },
+          { t: 7, hue: 30 }, { t: 9, hue: 45 }, { t: 24, hue: 35 },
+        ];
+        for (let i = 0; i < points.length - 1; i++) {
+          if (hoursSince22 >= points[i].t && hoursSince22 <= points[i+1].t) {
+            const p1 = points[i], p2 = points[i+1];
+            const ratio = (p2.t - p1.t) === 0 ? 0 : (hoursSince22 - p1.t) / (p2.t - p1.t);
+            return p1.hue + (p2.hue - p1.hue) * ratio;
+          }
+        }
+        return 35;
+      },
+
+      // خلط دائري بين لونين على عجلة الألوان (بيراعي إنها دائرة مش خط مستقيم)
+      blendHue(h1, h2, mix) {
+        let diff = h2 - h1;
+        if (diff > 180) diff -= 360;
+        if (diff < -180) diff += 360;
+        return (h1 + diff * mix + 360) % 360;
+      },
+
+      scheduleColorLoop() {
+        if (!this.isRunning) return;
+        const now = Date.now();
+        if (now - this.lastColorUpdate >= this.colorUpdateInterval) {
+          this.lastColorUpdate = now;
+          this.updateColors();
+        }
+        const nightAmount = this.getNightAmount(new Date());
+        if (nightAmount > 0.5) {
+          this.colorAnimId = setTimeout(() => this.scheduleColorLoop(), 5000);
+        } else {
+          this.colorAnimId = requestAnimationFrame(() => this.scheduleColorLoop());
+        }
+      },
+
+      updateColors() {
+        const now = new Date();
+        const t = Date.now() / 1000;
+        const nightAmount = this.getNightAmount(now);
+
+        // --- اللون النهاري: موجتين مستقلتين (Primary + Secondary) ---
+        const w1 = Math.sin(t * (2*Math.PI/71)), w2 = Math.sin(t * (2*Math.PI/47));
+        const dayPrimary = (((w1+w2)/2 + 1)/2) * 360;
+        const w3 = Math.sin(t * (2*Math.PI/83)), w4 = Math.sin(t * (2*Math.PI/59));
+        const daySecondary = (((w3+w4)/2 + 1)/2) * 360;
+
+        // --- اللون الدافئ الليلي (مستمر بلا قفزات) ---
+        const nightHue = this.getNightHue(now);
+
+        // --- الخلط النهائي بين النهار والليل حسب nightAmount ---
+        const primaryHue = this.blendHue(dayPrimary, nightHue, nightAmount);
+        const secondaryHue = this.blendHue(daySecondary, nightHue, nightAmount);
+
+        // --- تشبع وإضاءة: نهاري متحرك، بيقل تدريجياً كل ما نقترب من الليل ---
+        const daySat = 65 + Math.sin(t * (2*Math.PI/33)) * 15;
+        const dayLight = 50 + Math.sin(t * (2*Math.PI/29)) * 10;
+        const sat = daySat * (1 - nightAmount) + 42 * nightAmount;
+        const light = dayLight * (1 - nightAmount) + 26 * nightAmount;
+
+        // --- شدة الظل/الجلو الخارجي: بتقل بالليل لكن مش لصفر تام ---
+        const shadowOpacity = 0.4 * (1 - nightAmount) + 0.12 * nightAmount;
+        const ambientOpacity = (0.32 * (1 - nightAmount) + 0.08 * nightAmount) * this.relocOpacityMul;
+
+        // --- قوة الزجاج (blur/saturate) بتقل بالليل هي كمان ---
+        const blurPx = 20 - (nightAmount * 9);      // من 20px نهار لـ 11px ليل
+        const satMul = 1.6 - (nightAmount * 0.5);   // من 1.6 لـ 1.1
+        this.glassCard.style.backdropFilter = `blur(${blurPx}px) saturate(${satMul}) contrast(1.05)`;
+        this.glassCard.style.webkitBackdropFilter = this.glassCard.style.backdropFilter;
+
+        // --- لون النص: أبيض نهاراً، دافئ خافت ليلاً ---
+        const textLightness = 100 * (1 - nightAmount) + 68 * nightAmount;
+        const textColor = `hsl(${nightHue}, ${nightAmount*45}%, ${textLightness}%)`;
+        const textShadowOpacity = 0.25 * (1 - nightAmount) + 0.15 * nightAmount;
+        this.timeDisplay.style.color = textColor;
+        this.timeDisplay.style.textShadow = `0 0 40px hsla(${nightHue}, 40%, 80%, ${textShadowOpacity})`;
+        this.dateDisplay.style.color = textColor;
+        this.dateDisplay.style.textShadow = '0 2px 12px rgba(0,0,0,0.3)';
+
+        // --- الطبقة 1: تلوين الزجاج الأساسي (خفيف جداً) ---
+        this.glassCard.style.background = `hsla(${primaryHue}, 20%, 90%, 0.035)`;
+
+        // --- حدود الكارت + ظل خارجي خفيف (مش المصدر الأساسي للإضاءة بقى) ---
+        this.glassCard.style.borderColor = `hsla(${secondaryHue}, ${sat}%, 65%, 0.28)`;
+        this.glassCard.style.boxShadow = `
+          0 20px 60px rgba(0,0,0,0.5),
+          0 0 50px hsla(${primaryHue}, ${sat}%, ${light}%, ${shadowOpacity}),
+          inset 0 1px 0 rgba(255,255,255,0.15),
+          inset 0 -1px 0 rgba(0,0,0,0.2)
+        `;
+
+        // --- الهالة الجوية البعيدة: خافتة جداً، مجرد أثر محيطي ---
+        this.ambientBackdrop.style.background =
+          `radial-gradient(circle at 50% 50%, hsla(${secondaryHue}, ${sat}%, 50%, ${ambientOpacity}), transparent 70%)`;
+
+        // --- الإضاءة الداخلية الحقيقية جوه الزجاج (بديل الـ glow) ---
+        // نقطة ضوء بتلف في دايرة بطيئة جداً (دورة كل ~250 ثانية)، بلون primaryHue،
+        // بإضاءة عالية (مش تشبع عالي) عشان تحس إنها "نور" مش "لون"
+        const lightX = 50 + Math.cos(t / 40) * 28;
+        const lightY = 50 + Math.sin(t / 40) * 28;
+        const lightAlpha = (0.5 * (1 - nightAmount) + 0.22 * nightAmount) * this.relocOpacityMul;
+        this.liquidLight.style.background =
+          `radial-gradient(circle at ${lightX}% ${lightY}%, hsla(${primaryHue}, 40%, 88%, ${lightAlpha}) 0%, transparent 55%)`;
+      },
+
+      // ===========================================================
+      // Anti Burn-in: Major + Micro + Pixel Refresh + Relocation
+      // كل نظام له متغيراته المستقلة، وبيتجمعوا في transform واحد بس
+      // ===========================================================
+      startBurnProtection() { this.scheduleMajorMove(); this.scheduleMicroMove(); },
+
+      scheduleMajorMove() {
+        if (!this.isRunning) return;
+        const delay = Math.floor(Math.random() * (40000-15000+1)) + 15000;
+        this.burnMajorTimeout = setTimeout(() => { this.applyMajorMove(); this.scheduleMajorMove(); }, delay);
+      },
+      applyMajorMove() {
+        const max = 12;
+        this.majorX = (Math.random()-0.5)*2*max;
+        this.majorY = (Math.random()-0.5)*2*max;
+        this.updateWrapperTransform();
+      },
+
+      scheduleMicroMove() {
+        if (!this.isRunning) return;
+        const delay = Math.floor(Math.random() * (12000-8000+1)) + 8000;
+        this.burnMicroTimeout = setTimeout(() => { this.applyMicroMove(); this.scheduleMicroMove(); }, delay);
+      },
+      applyMicroMove() {
+        const max = 2;
+        this.microX = (Math.random()-0.5)*2*max;
+        this.microY = (Math.random()-0.5)*2*max;
+        this.updateWrapperTransform();
+      },
+
+      startPixelRefresh() {
+        this.pixelRefreshInterval = setInterval(() => {
+          if (!this.isRunning) return;
+          this.pixelRefreshX = 15; this.pixelRefreshY = 15;
+          this.updateWrapperTransform();
+          setTimeout(() => {
+            this.pixelRefreshX = 0; this.pixelRefreshY = 0;
+            this.updateWrapperTransform();
+          }, 2000);
+        }, 10 * 60 * 1000);
+      },
+
+      // --- Layout Relocation: تغيير المنطقة + الحجم + الشفافية كل ساعة (أو نص ساعة بالليل العميق) ---
+      scheduleNextRelocation() {
+        if (!this.isRunning) return;
+        const now = new Date();
+        const nightAmount = this.getNightAmount(now);
+        const intervalMinutes = nightAmount > 0.5 ? 30 : 60;
+
+        const minutesNow = now.getMinutes() + now.getSeconds()/60;
+        let minsToNext = intervalMinutes - (minutesNow % intervalMinutes);
+        if (minsToNext <= 0.01) minsToNext = intervalMinutes;
+        const msToNext = Math.round(minsToNext * 60000);
+
+        this.relocationTimeout = setTimeout(() => {
+          this.applyRelocation();
+          this.scheduleNextRelocation();
+        }, msToNext);
+      },
+
+      applyRelocation() {
+        // استبعاد المناطق المستخدمة مؤخراً (آخر 3)
+        const available = this.anchors.filter(a => !this.relocHistory.includes(a.name));
+        const pool = available.length > 0 ? available : this.anchors;
+        const chosen = pool[Math.floor(Math.random() * pool.length)];
+
+        this.relocHistory.push(chosen.name);
+        if (this.relocHistory.length > 3) this.relocHistory.shift();
+
+        this.relocX = chosen.x;
+        this.relocY = chosen.y;
+        this.relocScale = this.scaleOptions[Math.floor(Math.random() * this.scaleOptions.length)];
+        this.relocOpacityMul = 0.75 + Math.random() * 0.25; // بين 0.75 و1.0
+
+        this.updateWrapperTransform();
+      },
+
+      // يجمع كل مصادر الحركة (بكسل + نسبة مئوية + حجم) في transform واحد
+      updateWrapperTransform() {
+        const totalPx_X = this.majorX + this.microX + this.pixelRefreshX;
+        const totalPx_Y = this.majorY + this.microY + this.pixelRefreshY;
+        this.clockWrapper.style.transform =
+          `translate(calc(${this.relocX}% + ${totalPx_X}px), calc(${this.relocY}% + ${totalPx_Y}px)) scale(${this.relocScale})`;
+      },
+    };
+
+    document.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
+
+</body>
+</html>
       color: #e8ecf1;
       padding: 20px;
       background: radial-gradient(circle at 30% 40%, #0f172a, #05080c 80%);
